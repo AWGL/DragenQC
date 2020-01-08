@@ -7,7 +7,7 @@ set -eo pipefail
 # Define Input Variables # 
 #------------------------#
 
-version="0.0.1"
+version="1.0.0"
 
 # run directory location
 sourceDir=$1
