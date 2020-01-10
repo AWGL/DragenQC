@@ -1,13 +1,16 @@
 #!/bin/bash
 set -eo pipefail
 
-#Usage: bash /data/pipelines/DragenQC/DragenQC-0.0.1/DragenQC.sh /mnt/novaseq/191010_D00501_0366_BH5JWHBCX3/
+# Description:
+# Author:
+# Mode:
+# Usage:
 
 #------------------------#
 # Define Input Variables # 
 #------------------------#
 
-version="1.0.0"
+version="0.0.1"
 
 # run directory location
 sourceDir=$1
@@ -101,8 +104,6 @@ for variableFile in $(ls *.variables);do
 
 done
 
-has_pipeline=false
-
 # trigger pipeline if defined in variables file
 for sampleDir in ./Data/*/*;do
 
@@ -117,13 +118,11 @@ for sampleDir in ./Data/*/*;do
         echo "$sampleId --> running pipeline: $pipelineName-$pipelineVersion"
         # run pipeline save data to /staging/data/results/
         bash /data/pipelines/$pipelineName/"$pipelineName"-"$pipelineVersion"/"$pipelineName".sh "$sampleDir"
-        
-        has_pipeline=true
+     
 
  
     else
         echo "$sampleId --> DEMULTIPLEX ONLY"
-        touch "$sampleDir"/no_dragen_pipeline_initiated.txt
         
 
 
@@ -136,21 +135,16 @@ done
 
 
 # all DRAGEN analyses finished
-
-# move FASTQ and delete from staging
+# move FASTQ
 rsync -azP /staging/data/fastq/"$seqId" /mnt/novaseq-archive-fastq/"$seqid"
+
+# move results
+rsync -azP /staging/data/results/"$seqId" /mnt/novaseq-results/"$seqid"
+
+# delete from staging
+
 rm -r /staging/data/fastq/"$seqId"
-
-
-
-# move results and delete from staging - only execute if we have a pipeline so results folder has been created
-if [ "$has_pipeline" = true ] ; then
-
-    rsync -azP /staging/data/results/"$seqId" /mnt/novaseq-results/"$seqid"
-    rm -r /staging/data/results/"$seqId"
-
-fi
-
+rm -r /staging/data/results/"$seqId"
 
 # mark as complete
 for i in /mnt/novaseq-results/"$seqId"/*; do
