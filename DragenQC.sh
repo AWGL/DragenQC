@@ -61,7 +61,7 @@ totalReads=$(echo "$summary" | grep -A999 "^Level" | grep ^[[:space:]]*[0-9] | a
 # Generate FASTQ Files #
 #----------------------#
 
-echo "Staring Demultiplex"
+echo "Starting Demultiplex"
 
 # convert BCLs to FASTQ using DRAGEN
 dragen --bcl-conversion-only true --bcl-input-directory "$sourceDir" --output-directory $fastqDirTemp/$seqId
@@ -130,14 +130,17 @@ for sampleDir in "$fastqDirTempRun"/Data/*/*;do
 
         # copy over pipeline files
         cp /data/pipelines/$pipelineName/"$pipelineName"-"$pipelineVersion"/"$pipelineName".sh /staging/data/results/$seqId/$panel/$sampleId/
-        cp *.variables "$resultsDirTempRun"/$panel/$sampleId/
+        cp *.variables "$resultsDirTempRun"/"$panel"/"$sampleId"/
 
         for i in $(ls "$sampleId"_S*.fastq.gz); do
-            ln -s "$PWD"/"$i" "$resultsDirTempRun"/$panel/$sampleId/ 
+            ln -s "$PWD"/"$i" "$resultsDirTempRun"/"$panel"/"$sampleId"/ 
         done 
  
     else
-        echo "$sampleId --> DEMULTIPLEX ONLY"    
+        echo "$sampleId --> DEMULTIPLEX ONLY"
+        mkdir -p "$resultsDirTempRun"/"$panel"/"$sampleId"/
+        touch "$resultsDirTempRun"/"$panel"/"$sampleId"/demultiplex_only
+    
     fi
 
 done
@@ -160,7 +163,7 @@ for sampleDir in "$fastqDirTempRun"/Data/*/*;do
           bash "$pipelineName".sh "$sampleDir" > "$seqId"-"$sampleId".log 2>&1
 
     else
-
+	   touch "$fastqDirTempRun"/Data/"$panel"/demultiplex_only
            echo "$sampleId --> DEMULTIPLEX ONLY"
 
     fi
@@ -194,7 +197,23 @@ if [ -d /mnt/novaseq-archive-fastq/"$seqId" ]; then
     echo "/mnt/novaseq-archive-fastq/$seqId already exists - cannot rsync"
     exit 1
 else 
-    rsync -azP /staging/data/fastq/"$seqId" /mnt/novaseq-archive-fastq/ > /staging/data/tmp/rsync-"$seqId"-fastq.log 2>&1
+
+    mkdir -p /mnt/novaseq-archive-fastq/"$seqId"
+
+    # only do for demultiplex only data
+    for path in $(find "$fastqDirTempRun"/Data/  -maxdepth 2 -mindepth 2 -type f -name "demultiplex_only" -exec dirname '{}' \;); do
+	
+	echo $path
+
+        panel=$(basename $path)
+                 
+        rsync -azP $path /mnt/novaseq-archive-fastq/"$seqId"/ > /staging/data/tmp/rsync-"$seqId"-"$panel"-fastq.log 2>&1
+        
+        cp /staging/data/tmp/rsync-"$seqId"-"$panel"-fastq.log "$path"/dragen_complete.txt
+        
+        rm  /staging/data/tmp/rsync-"$seqId"-"$panel"-fastq.log
+
+    done
 
 fi
 
@@ -202,14 +221,6 @@ fi
 cd ~
 rm -r /staging/data/fastq/"$seqId"
 rm -r /staging/data/results/"$seqId"
-
-
-# mark fastq as complete
-for i in /mnt/novaseq-archive-fastq/"$seqId"/Data/*; do
-    cp /staging/data/tmp/rsync-"$seqId"-fastq.log  "$i"/dragen_complete.txt
-done
-
-rm /staging/data/tmp/rsync-"$seqId"-fastq.log /staging/data/tmp/rsync-"$seqId"-results.log
 
 # write dragen-complete file to raw (flag for moving by host cron)
 touch $sourceDir/dragen-complete
