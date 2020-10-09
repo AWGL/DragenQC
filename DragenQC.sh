@@ -4,7 +4,10 @@
 #SBATCH --output=DragenQC-%N-%j.output
 #SBATCH --error=DragenQC-%N-%j.error
 #SBATCH --partition=dragen2
-#SBATCH --propagate=NONE
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=24
+#SBATCH --threads-per-core=2
+#SBATCH --nodes=1
 
 set -euo pipefail
 
@@ -120,10 +123,26 @@ for sampleDir in "$fastqDirTempRun"/Data/*/*;do
         done 
  
     else
+
         echo "$sampleId --> DEMULTIPLEX ONLY"
-        mkdir -p "$resultsDirTempRun"/"$panel"/"$sampleId"/
-        touch "$resultsDirTempRun"/"$panel"/"$sampleId"/demultiplex_only
-    
+   
+        # move fastq data
+        if [ -d "$fastq_dir"/"$seqId"/"$panel"/"$sampleId" ]; then
+           echo "$fastq_dir/$seqId/$panel/$sampleId already exists - cannot rsync"
+           exit 1
+        else
+
+           mkdir -p "$fastq_dir"/"$seqId"/"$panel"/"$sampleId"
+
+           rsync -azP --no-links . "$output_dir"/"$seqId"/"$panel"/"$sampleId"
+           touch "$output_dir"/"$seqId"/"$panel"/"$sampleId"/dragen_demultiplex_only.txt
+           cd /staging/
+	   rm -r $sampleDir  
+
+	fi
+
+
+ 
     fi
 
 done
@@ -146,12 +165,9 @@ for sampleDir in "$fastqDirTempRun"/Data/*/*;do
           sbatch "$pipelineName".sh  
 
     else
-	   touch "$fastqDirTempRun"/Data/"$panel"/demultiplex_only
-           echo "$sampleId --> DEMULTIPLEX ONLY"
-
+          echo "$sampleId --> DEMULTIPLEX ONLY"
+                                    
     fi
-
-
 
 done
 
