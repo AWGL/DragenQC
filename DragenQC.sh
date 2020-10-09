@@ -1,5 +1,16 @@
 #!/bin/bash
-set -eo pipefail
+
+#SBATCH --time=24:00:00
+#SBATCH --output=DragenQC-%N-%j.output
+#SBATCH --error=DragenQC-%N-%j.error
+#SBATCH --partition=dragen2
+#SBATCH --propagate=NONE
+
+set -euo pipefail
+
+# set max processes and open files as these differ between wren and head node
+ulimit -S -u 16384
+ulimit -S -n 65535
 
 # Description:
 # Author: Joseph Halstead / Chris Medway
@@ -9,24 +20,22 @@ set -eo pipefail
 # Define Input Variables # 
 #------------------------#
 
-version="2.0.0"
-
-# run directory location
-sourceDir=$1
+version="3.0.0"
+variables_script="/data/diagnostics/scripts/dragen_make_variables.py"
+pipeline_dir="/home/transfer/dragen/pipelines/"
 
 echo "$sourceDir"
 
 # Illumina run directory name 
 seqId=$(basename "$sourceDir")
 
-# instrument name
-instrument=$(echo $sourceDir | cut -d"/" -f2) 
+echo $seqId
+
 
 # define base path of local NVMe outputs
 fastqDirTemp=/staging/data/fastq
 resultsDirTemp=/staging/data/results
 
-# copy files to keep to long-term storage
 fastqDirTempRun="$fastqDirTemp"/"$seqId"/
 resultsDirTempRun="$resultsDirTemp"/"$seqId"/
 
@@ -42,45 +51,16 @@ if [ -d $resultsDirTempRun ]; then
     exit 1
 fi 
 
-
-#-----------------#
-# Extract Quality #
-#-----------------#
-
-# collect interop data
-summary=$(/data/apps/interop-distros/InterOp-1.0.25-Linux-GNU-4.8.2/bin/summary --level=3 --csv=1 "$sourceDir")
-
-# extract fields
-yieldGb=$(echo "$summary" | grep ^Total | cut -d, -f2)
-q30Pct=$(echo "$summary" | grep ^Total | cut -d, -f7)
-avgDensity=$(echo "$summary" | grep -A999 "^Level" | grep ^[[:space:]]*[0-9] | awk -F',| ' '{print $1"\t"$4}' | sort | uniq | awk -F'\t' '{total += $2; count++} END {print total/count}')
-avgPf=$(echo "$summary" | grep -A999 "^Level" |grep ^[[:space:]]*[0-9] | awk -F',| ' '{print $1"\t"$7}' | sort | uniq | awk -F'\t' '{total += $2; count++} END {print total/count}')
-totalReads=$(echo "$summary" | grep -A999 "^Level" | grep ^[[:space:]]*[0-9] | awk -F',| ' '{print $1"\t"$19}' | sort | uniq | awk -F'\t' '{total += $2} END {print total}')
-
 #----------------------#
 # Generate FASTQ Files #
 #----------------------#
 
 echo "Starting Demultiplex"
 
+
+
 # convert BCLs to FASTQ using DRAGEN
-dragen --bcl-conversion-only true --bcl-input-directory "$sourceDir" --output-directory $fastqDirTemp/$seqId
-
-# copy files to keep to long-term storage
-cd $fastqDirTempRun
-cp "$sourceDir"/SampleSheet.csv .
-cp "$sourceDir"/?unParameters.xml RunParameters.xml
-cp "$sourceDir"/RunInfo.xml .
-cp -R "$sourceDir"/InterOp .
-
-# print metrics headers to file
-if [ -e "$seqId"_metrics.txt ]; then
-    rm "$seqId"_metrics.txt
-fi
-
-# print metrics to file
-echo -e "Run\tTotalGb\tQ30\tAvgDensity\tAvgPF\tTotalMReads" > "$seqId"_metrics.txt
-echo -e "$(basename $sourceDir)\t$yieldGb\t$q30Pct\t$avgDensity\t$avgPf\t$totalReads" >> "$seqId"_metrics.txt
+/opt/edico/bin/dragen --bcl-conversion-only true --bcl-input-directory "$sourceDir" --output-directory $fastqDirTempRun --first-tile-only true
 
 
 #---------------------#
@@ -89,7 +69,9 @@ echo -e "$(basename $sourceDir)\t$yieldGb\t$q30Pct\t$avgDensity\t$avgPf\t$totalR
 
 echo "making variables files"
 
-python /data/apps/dragen_make_variables/dragen_make_variables.py  --samplesheet SampleSheet.csv --outputdir ./ --seqid $seqId
+cd  $fastqDirTempRun
+
+python $variables_script  --samplesheet "$sourceDir"/SampleSheet.csv --outputdir ./ --seqid $seqId
 
 # move FASTQ & variable files into project folders
 for variableFile in $(ls *.variables);do
@@ -121,17 +103,18 @@ for sampleDir in "$fastqDirTempRun"/Data/*/*;do
         echo "$sampleId --> configuring pipeline: $pipelineName-$pipelineVersion"
 
         # make results dir
-        if [ -d "$resultsDirTempRun"/$panel/$sampleId ]; then
-            echo "$resultsDirTempRun/$panel/$sampleId already exists"
+        if [ -d "$resultsDirTempRun"/"$panel"/"$sampleId" ]; then
+            echo "$resultsDirTempRun/"$panel"/$sampleId already exists"
             exit
         else
-            mkdir -p "$resultsDirTempRun"/$panel/$sampleId
+            mkdir -p "$resultsDirTempRun"/"$panel"/"$sampleId"
         fi
+	
 
-        # copy over pipeline files
-        cp /data/pipelines/$pipelineName/"$pipelineName"-"$pipelineVersion"/"$pipelineName".sh /staging/data/results/$seqId/$panel/$sampleId/
-        cp *.variables "$resultsDirTempRun"/"$panel"/"$sampleId"/
-
+	# copy over pipeline files
+	cp "$pipeline_dir"/$pipelineName/"$pipelineName"-"$pipelineVersion"/"$pipelineName".sh  "$resultsDirTempRun"/"$panel"/"$sampleId"
+	cp *.variables "$resultsDirTempRun"/"$panel"/"$sampleId"/
+	
         for i in $(ls "$sampleId"_S*.fastq.gz); do
             ln -s "$PWD"/"$i" "$resultsDirTempRun"/"$panel"/"$sampleId"/ 
         done 
@@ -156,11 +139,11 @@ for sampleDir in "$fastqDirTempRun"/Data/*/*;do
     cd $sampleDir
     . *.variables
 
-    cd  /staging/data/results/$seqId/$panel/$sampleId/
+    cd  "$resultsDirTempRun"/"$panel"/"$sampleId"
 
     if [[ $pipelineName =~ "Dragen" ]]; then
-          echo bashing the script /staging/data/results/$seqId/$panel/$sampleId/"$pipelineName".sh
-          bash "$pipelineName".sh "$sampleDir" > "$seqId"-"$sampleId".log 2>&1
+          echo "Submitting job $pipelineName for $sampleId"
+          sbatch "$pipelineName".sh  
 
     else
 	   touch "$fastqDirTempRun"/Data/"$panel"/demultiplex_only
@@ -173,54 +156,18 @@ for sampleDir in "$fastqDirTempRun"/Data/*/*;do
 done
 
 
-# data permissions - need to be 775 so transfer which is in same group as dragen can write
-chmod -R 775 $fastqDirTempRun
-chmod -R 775 $resultsDirTempRun
 
 
-# move results data - don't move symlinks fastqs
-if [ -d /mnt/novaseq-results/"$seqId" ]; then
-    echo "/mnt/novaseq-results/$seqId already exists - cannot rsync"
-    exit 1
-else
-    rsync -azP --no-links /staging/data/results/"$seqId" /mnt/novaseq-results/ > /staging/data/tmp/rsync-"$seqId"-results.log 2>&1
- 
-fi
 
-# mark results as complete - do this first so post processing can start asap
-for i in /mnt/novaseq-results/"$seqId"/*; do
-    cp /staging/data/tmp/rsync-"$seqId"-results.log  "$i"/dragen_complete.txt
-done
 
-# move fastq data
-if [ -d /mnt/novaseq-archive-fastq/"$seqId" ]; then
-    echo "/mnt/novaseq-archive-fastq/$seqId already exists - cannot rsync"
-    exit 1
-else 
 
-    mkdir -p /mnt/novaseq-archive-fastq/"$seqId"
 
-    # only do for demultiplex only data
-    for path in $(find "$fastqDirTempRun"/Data/  -maxdepth 2 -mindepth 2 -type f -name "demultiplex_only" -exec dirname '{}' \;); do
-	
-	echo $path
 
-        panel=$(basename $path)
-                 
-        rsync -azP $path /mnt/novaseq-archive-fastq/"$seqId"/ > /staging/data/tmp/rsync-"$seqId"-"$panel"-fastq.log 2>&1
-        
-        cp /staging/data/tmp/rsync-"$seqId"-"$panel"-fastq.log "$path"/dragen_complete.txt
-        
-        rm  /staging/data/tmp/rsync-"$seqId"-"$panel"-fastq.log
 
-    done
 
-fi
 
-# sometimes being in the directory you delete messes things up so move to home and then delete
-cd ~
-rm -r /staging/data/fastq/"$seqId"
-rm -r /staging/data/results/"$seqId"
 
-# write dragen-complete file to raw (flag for moving by host cron)
-touch $sourceDir/dragen-complete
+
+
+
+
