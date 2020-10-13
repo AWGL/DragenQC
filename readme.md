@@ -4,19 +4,23 @@
 
 Script to demultiplex raw sequence data and initiate downstream pipelines on the Dragen server.
 
-Demultiplexes data to:
+The script has the following functions:
 
-/staging/data/fastq/$seqid/Data/$panel/$sample
+1) Demultiplex data on the Dragen.
 
-Inititates pipeline if specified in SampleSheet. Checks whether the $pipelineName has 'Dragen' within it. If so we try and initiate a Dragen pipeline. Otherwise we just demultiplex.
+2) Initiate downstream pipelines on the Dragen.
+
+3) For samples which should not be processed on the Dragen transfer the FASTQ files to another location for processing.
+
 
 ## Requirements
 
-dragen Version 07.021.408.3.4.12 (Software Release v3.4)
+- dragen Version 07.021.408.3.4.12 (Software Release v3.4+)
+- slurm workload manager
 
 ## Run
 
 ```
-bash /data/pipelines/DragenQC/DragenQC-0.0.1/DragenQC.sh /mnt/novaseq/191010_D00501_0366_BH5JWHBCX3/
+sbatch --export=sourceDir=/data/archive/novaseq/BCL/200626_A00748_0033_AHL752DRXX DragenQC.sh
 
 ```
