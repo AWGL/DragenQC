@@ -164,7 +164,7 @@ for sampleDir in "$fastqDirTempRun"/Data/*/*;do
 
     if [[ $pipelineName =~ "Dragen" ]]; then
           echo "Submitting job $pipelineName for $sampleId"
-          sbatch "$pipelineName".sh  
+          sbatch -J "$pipelineName"-"$run" "$pipelineName".sh  
 
     else
           echo "$sampleId --> DEMULTIPLEX ONLY"
