@@ -26,6 +26,8 @@ ulimit -S -n 65535
 version="3.0.0"
 variables_script="/data/diagnostics/scripts/dragen_make_variables.py"
 pipeline_dir="/home/transfer/dragen/pipelines/"
+fastq_dir="/Output/fastq/"
+
 
 echo "$sourceDir"
 
@@ -63,7 +65,7 @@ echo "Starting Demultiplex"
 
 
 # convert BCLs to FASTQ using DRAGEN
-/opt/edico/bin/dragen --bcl-conversion-only true --bcl-input-directory "$sourceDir" --output-directory $fastqDirTempRun --first-tile-only true
+/opt/edico/bin/dragen --bcl-conversion-only true --bcl-input-directory "$sourceDir" --output-directory $fastqDirTempRun  #--first-tile-only true
 
 
 #---------------------#
@@ -134,8 +136,8 @@ for sampleDir in "$fastqDirTempRun"/Data/*/*;do
 
            mkdir -p "$fastq_dir"/"$seqId"/"$panel"/"$sampleId"
 
-           rsync -azP --no-links . "$output_dir"/"$seqId"/"$panel"/"$sampleId"
-           touch "$output_dir"/"$seqId"/"$panel"/"$sampleId"/dragen_demultiplex_only.txt
+           rsync -azP --no-links . "$fastq_dir"/"$seqId"/"$panel"/"$sampleId"
+           touch "$fastq_dir"/"$seqId"/"$panel"/"$sampleId"/dragen_demultiplex_only.txt
            cd /staging/
 	   rm -r $sampleDir  
 
