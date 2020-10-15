@@ -25,7 +25,7 @@ ulimit -S -n 65535
 
 version="3.0.0"
 variables_script="/data/diagnostics/scripts/dragen_make_variables.py"
-pipeline_dir="/home/transfer/dragen/pipelines/"
+pipeline_dir="/data/diagnostics/pipelines/"
 fastq_dir="/Output/fastq/"
 
 
@@ -65,7 +65,7 @@ echo "Starting Demultiplex"
 
 
 # convert BCLs to FASTQ using DRAGEN
-/opt/edico/bin/dragen --bcl-conversion-only true --bcl-input-directory "$sourceDir" --output-directory $fastqDirTempRun  #--first-tile-only true
+/opt/edico/bin/dragen --bcl-conversion-only true --bcl-input-directory "$sourceDir" --output-directory $fastqDirTempRun  --first-tile-only true
 
 
 #---------------------#
@@ -163,8 +163,8 @@ for sampleDir in "$fastqDirTempRun"/Data/*/*;do
     cd  "$resultsDirTempRun"/"$panel"/"$sampleId"
 
     if [[ $pipelineName =~ "Dragen" ]]; then
-          echo "Submitting job $pipelineName for $sampleId"
-          sbatch -J "$pipelineName"-"$run" "$pipelineName".sh  
+          echo "Running job $pipelineName for $sampleId"
+          bash  "$pipelineName".sh  > "$seqId"-"$sampleId".log 2>&1  
 
     else
           echo "$sampleId --> DEMULTIPLEX ONLY"
