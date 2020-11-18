@@ -193,8 +193,8 @@ else
 
     find /mnt/novaseq-results/"$seqId" -type f | xargs md5sum > destination.md5
 
-    sourcemd5file=$(md5sum test.md5 | cut -d" " -f 1)
-    destinationmd5file=$(md5sum test2.md5 | cut -d" " -f 1)
+    sourcemd5file=$(md5sum source.md5 | cut -d" " -f 1)
+    destinationmd5file=$(md5sum destination.md5 | cut -d" " -f 1)
 
     if [ "$sourcemd5file" = "$destinationmd5file" ]; then
         echo "MD5 sum of source destination matches that of destination"
