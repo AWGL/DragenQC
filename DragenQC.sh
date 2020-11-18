@@ -196,11 +196,11 @@ else
     sourcemd5file=$(md5sum test.md5 | cut -d" " -f 1)
     destinationmd5file=$(md5sum test2.md5 | cut -d" " -f 1)
 
-    if [ "$file1" = "$file2" ]; then
+    if [ "$sourcemd5file" = "$destinationmd5file" ]; then
         echo "MD5 sum of source destination matches that of destination"
     else
         echo "MD5 sum of source destination matches does not match that of destination - exiting program "
-    exit 1
+        exit 1
     fi
 
 
