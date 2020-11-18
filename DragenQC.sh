@@ -9,7 +9,7 @@ set -eo pipefail
 # Define Input Variables # 
 #------------------------#
 
-version="2.0.0"
+version="2.0.1"
 
 # run directory location
 sourceDir=$1
@@ -64,7 +64,7 @@ totalReads=$(echo "$summary" | grep -A999 "^Level" | grep ^[[:space:]]*[0-9] | a
 echo "Starting Demultiplex"
 
 # convert BCLs to FASTQ using DRAGEN
-dragen --bcl-conversion-only true --bcl-input-directory "$sourceDir" --output-directory $fastqDirTemp/$seqId
+/opt/edico/bin/dragen --bcl-conversion-only true --bcl-input-directory "$sourceDir" --output-directory $fastqDirTemp/$seqId
 
 # copy files to keep to long-term storage
 cd $fastqDirTempRun
@@ -183,8 +183,27 @@ if [ -d /mnt/novaseq-results/"$seqId" ]; then
     echo "/mnt/novaseq-results/$seqId already exists - cannot rsync"
     exit 1
 else
+
     rsync -azP --no-links /staging/data/results/"$seqId" /mnt/novaseq-results/ > /staging/data/tmp/rsync-"$seqId"-results.log 2>&1
  
+    # get md5 sums for source
+    find /staging/data/results/"$seqId" -type f | xargs md5sum > source.md5
+
+    # get md5 sums for destination
+
+    find /mnt/novaseq-results/"$seqId" -type f | xargs md5sum > destination.md5
+
+    sourcemd5file=$(md5sum test.md5 | cut -d" " -f 1)
+    destinationmd5file=$(md5sum test2.md5 | cut -d" " -f 1)
+
+    if [ "$file1" = "$file2" ]; then
+        echo "MD5 sum of source destination matches that of destination"
+    else
+        echo "MD5 sum of source destination matches does not match that of destination - exiting program "
+    exit 1
+    fi
+
+
 fi
 
 # mark results as complete - do this first so post processing can start asap
