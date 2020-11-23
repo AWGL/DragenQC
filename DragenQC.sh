@@ -187,11 +187,11 @@ else
     rsync -azP --no-links /staging/data/results/"$seqId" /mnt/novaseq-results/ > /staging/data/tmp/rsync-"$seqId"-results.log 2>&1
  
     # get md5 sums for source
-    find /staging/data/results/"$seqId" -type f | xargs md5sum > source.md5
+    find /staging/data/results/"$seqId" -type f | egrep -v "*md5" | xargs md5sum | cut -d" " -f 1 | sort > source.md5
 
     # get md5 sums for destination
 
-    find /mnt/novaseq-results/"$seqId" -type f | xargs md5sum > destination.md5
+    find /mnt/novaseq-results/"$seqId" -type f | egrep -v "*md5*" | xargs md5sum | cut -d" " -f 1 | sort > destination.md5
 
     sourcemd5file=$(md5sum source.md5 | cut -d" " -f 1)
     destinationmd5file=$(md5sum destination.md5 | cut -d" " -f 1)
