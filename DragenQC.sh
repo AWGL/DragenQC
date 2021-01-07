@@ -65,7 +65,7 @@ echo "Starting Demultiplex"
 
 
 # convert BCLs to FASTQ using DRAGEN
-/opt/edico/bin/dragen --bcl-conversion-only true --bcl-input-directory "$sourceDir" --output-directory $fastqDirTempRun  --first-tile-only true
+/opt/edico/bin/dragen --bcl-conversion-only true --bcl-input-directory "$sourceDir" --output-directory $fastqDirTempRun # --first-tile-only true
 
 
 #---------------------#
