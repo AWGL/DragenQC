@@ -23,11 +23,11 @@ ulimit -S -n 65535
 # Define Input Variables # 
 #------------------------#
 
+
 version="3.0.0"
 variables_script="/data/diagnostics/scripts/dragen_make_variables.py"
 pipeline_dir="/data/diagnostics/pipelines/"
 fastq_dir="/Output/fastq/"
-
 
 echo "$sourceDir"
 
@@ -61,8 +61,6 @@ fi
 #----------------------#
 
 echo "Starting Demultiplex"
-
-
 
 # convert BCLs to FASTQ using DRAGEN
 /opt/edico/bin/dragen --bcl-conversion-only true --bcl-input-directory "$sourceDir" --output-directory $fastqDirTempRun # --first-tile-only true
@@ -149,7 +147,6 @@ for sampleDir in "$fastqDirTempRun"/Data/*/*;do
 
 done
 
-
 # do separate loop for bashing pipelines as the scripts need to count number of directories correctly
 for sampleDir in "$fastqDirTempRun"/Data/*/*;do
 
@@ -172,16 +169,6 @@ for sampleDir in "$fastqDirTempRun"/Data/*/*;do
     fi
 
 done
-
-
-
-
-
-
-
-
-
-
 
 
 
