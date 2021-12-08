@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --time=24:00:00
+#SBATCH --time=72:00:00
 #SBATCH --output=DragenQC-%N-%j.output
 #SBATCH --error=DragenQC-%N-%j.error
 #SBATCH --partition=dragen2
