@@ -5,7 +5,7 @@
 #SBATCH --error=DragenQC-%N-%j.error
 #SBATCH --partition=dragen2
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=24
+#SBATCH --cpus-per-task=48
 #SBATCH --threads-per-core=2
 #SBATCH --nodes=1
 
